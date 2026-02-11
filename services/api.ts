@@ -2,7 +2,7 @@ import { RunConfiguration } from '../types';
 
 const BASE_URL = 'http://localhost:5000/api/v1';
 // IMPORTANT: Replace this with your actual method of getting the token (e.g., localStorage.getItem('token'))
-const TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiODk5OCIsInVzZXJfbmFtZSI6IlNhbWJhdGggVmF0YW5hayIsImdlbmRlciI6Ik1hbGUiLCJicmFuY2giOiIxIiwiYXBwX2xpc3QiOiJEVy0wMXxFQy0wMXxGQS0wMXxMQy0wMXxOTC0wMXxUQy0wMSIsInRlYW1fbWVtYmVyIjoiODk5OCwiLCJkZXBhcnRtZW50IjoiNTkiLCJkaXZpc2lvbiI6IjExIiwiaWF0IjoxNzcwODAwOTc1LCJleHAiOjE3NzA4MDQ1NzV9.jzMv_liG-QRiTNZVgvFZk9q2wVkIlHDckCiKnnjV4yk'; 
+const TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiODk5OCIsInVzZXJfbmFtZSI6IlNhbWJhdGggVmF0YW5hayIsImdlbmRlciI6Ik1hbGUiLCJicmFuY2giOiIxIiwiYXBwX2xpc3QiOiJEVy0wMXxFQy0wMXxGQS0wMXxMQy0wMXxOTC0wMXxUQy0wMSIsInRlYW1fbWVtYmVyIjoiODk5OCwiLCJkZXBhcnRtZW50IjoiNTkiLCJkaXZpc2lvbiI6IjExIiwiaWF0IjoxNzcwODA0NTkzLCJleHAiOjE3NzA4MDgxOTN9.N3oBiClcZ99u2UWSt3uGQWSZbnGxlFYZH88I_YeFHoo'; 
 
 const headers = {
     'Content-Type': 'application/json',

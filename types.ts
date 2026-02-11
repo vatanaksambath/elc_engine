@@ -75,5 +75,5 @@ export interface PipelineStep {
   label: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   duration: number;
-  dag_id?: string; // <-- NEW: Used to dynamically trigger Airflow
+  dag_id?: string; // NEW: Required for dynamic Airflow triggering
 }
