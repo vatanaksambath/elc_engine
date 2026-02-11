@@ -5,6 +5,7 @@ import { ExecutionSidebar } from '../components/execution/ExecutionSidebar';
 import { ExecutionControl } from '../components/execution/ExecutionControl';
 import { ExecutionOutput } from '../components/execution/ExecutionOutput';
 import { ExecutionModals } from '../components/execution/ExecutionModals';
+import { api } from '../services/api';
 import { 
   getStageLogs, 
   FULL_CORPORATE_DATA, 
@@ -301,30 +302,147 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
     abortControllerRef.current = new AbortController();
 
     // Streaming Logic
-    const runStream = async () => {
-        try {
-            // Reset progress at start of stage
-            setProgress(0);
-            // Ensure queue is clean
-            logQueueRef.current = [];
+    // const runStream = async () => {
+    //     try {
+    //         // Reset progress at start of stage
+    //         setProgress(0);
+    //         // Ensure queue is clean
+    //         logQueueRef.current = [];
             
-            // Connection Pulse: slowly increment to 15% to show activity during connection (before logs arrive)
+    //         // Connection Pulse: slowly increment to 15% to show activity during connection (before logs arrive)
+    //         const connectionInterval = setInterval(() => {
+    //             setProgress(old => old < 15 ? old + 1 : old);
+    //         }, 200);
+
+    //         // For testing: Use the same DAG ID for all stages as requested
+    //         const dagId = "random_stage_and_message_dag"; 
+    //         const response = await fetch(`http://localhost:5000/run-dag/${dagId}`, {
+    //             signal: abortControllerRef.current?.signal,
+    //         });
+
+    //         // Stop the "connecting" animation once response is received
+    //         clearInterval(connectionInterval);
+
+    //         if (!response.body) {
+    //             throw new Error("ReadableStream not supported");
+    //         }
+
+    //         const reader = response.body.getReader();
+    //         const decoder = new TextDecoder();
+    //         let done = false;
+
+    //         while (!done) {
+    //             const { value, done: streamDone } = await reader.read();
+    //             done = streamDone;
+                
+    //             if (value) {
+    //                 const chunk = decoder.decode(value, { stream: true });
+    //                 const lines = chunk.split("\n").filter((line) => line.trim() !== "");
+                    
+    //                 const newLogEntries: LogEntry[] = lines.map(line => {
+    //                      // Parse line for metadata
+    //                      const upperLine = line.toUpperCase();
+    //                      let level: LogEntry['level'] = 'INFO';
+                         
+    //                      if (upperLine.includes("ERROR") || upperLine.includes("FAIL") || upperLine.includes("CRITICAL") || upperLine.includes("EXCEPTION")) {
+    //                          level = 'ERROR';
+    //                      } else if (upperLine.includes("WARN") || upperLine.includes("WARNING")) {
+    //                          level = 'WARN';
+    //                      } else if (upperLine.includes("SUCCESS") || upperLine.includes("COMPLETED")) {
+    //                          level = 'SUCCESS';
+    //                      } else if (upperLine.includes("PROCESS") || upperLine.includes("STARTING") || upperLine.includes("EXECUTING") || upperLine.includes("INIT")) {
+    //                          level = 'PROCESS';
+    //                      }
+
+    //                      // Extract timestamp if exists [YYYY-MM-DD...]
+    //                      const match = line.match(/^\[(.*?)\]\s+(.*)$/);
+    //                      let message = line;
+    //                      // Default timestamp if not in log
+    //                      let timestamp = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+    //                      if (match) {
+    //                          // Use match[1] if it looks like a time/date, otherwise keep current time
+    //                          // match[2] is the clean message
+    //                          message = match[2];
+    //                      }
+
+    //                      return {
+    //                          stageId: currentStage.id,
+    //                          timestamp,
+    //                          level,
+    //                          message
+    //                      };
+    //                 });
+
+    //                 // PUSH TO QUEUE (Do not update state directly)
+    //                 logQueueRef.current.push(...newLogEntries);
+    //             }
+    //         }
+
+    //         // VISUAL SYNC: Wait for the log queue to drain before marking as complete
+    //         // This ensures the user sees all logs before the green checkmark appears
+    //         while (logQueueRef.current.length > 0) {
+    //             await new Promise(resolve => setTimeout(resolve, 100));
+    //         }
+
+    //         // Stream Complete
+    //         setProgress(100);
+
+    //         // Small delay to show completion before moving on
+    //         await new Promise(resolve => setTimeout(resolve, 500));
+            
+    //         // Mark Stage Complete
+    //         onUpdateStepsRef.current(stepsRef.current.map((step, idx) => 
+    //             idx === currentStageIndex ? { ...step, status: 'completed' } : step
+    //         ));
+            
+    //         setProgress(0); 
+    //         onUpdateStageIndexRef.current(prev => prev + 1);
+            
+    //         if (mode === 'manual') {
+    //             setIsManualStageRunning(false);
+    //         }
+
+    //     } catch (error: any) {
+    //         if (error.name === 'AbortError') {
+    //             logQueueRef.current = []; // Clear buffer on abort
+    //         } else {
+    //             console.error("Pipeline Stream Error:", error);
+    //             // Handle Error -> maybe add error log
+    //             onUpdateLogsRef.current(prev => [...prev, {
+    //                 stageId: currentStage.id,
+    //                 timestamp: new Date().toLocaleTimeString(),
+    //                 level: 'ERROR',
+    //                 message: `Stream connection failed: ${error.message}`
+    //             }]);
+    //             // Fail logic could go here if we want strict failure
+    //             handleSimulateError();
+    //         }
+    //     }
+    // };
+
+    const runStream = async () => {
+        const currentStage = currentSteps[currentStageIndex];
+        
+        try {
+            setProgress(0);
+            logQueueRef.current = [];
+            const allLogsToSave: any[] = [];
+
+            // Tell DB this step is PROCESSING
+            await api.updateStepStatus(runId, currentStage.id, 'processing');
+            
             const connectionInterval = setInterval(() => {
                 setProgress(old => old < 15 ? old + 1 : old);
             }, 200);
 
-            // For testing: Use the same DAG ID for all stages as requested
-            const dagId = "random_stage_and_message_dag"; 
-            const response = await fetch(`http://localhost:5000/run-dag/${dagId}`, {
-                signal: abortControllerRef.current?.signal,
-            });
+            // Trigger real Airflow DAG dynamically!
+            const dagIdToTrigger = currentStage.dag_id || 'default_dag_id';
+            const response = await api.triggerDag(dagIdToTrigger, abortControllerRef.current?.signal);
 
-            // Stop the "connecting" animation once response is received
             clearInterval(connectionInterval);
 
-            if (!response.body) {
-                throw new Error("ReadableStream not supported");
-            }
+            if (!response.body) throw new Error("ReadableStream not supported");
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -338,84 +456,56 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
                     const chunk = decoder.decode(value, { stream: true });
                     const lines = chunk.split("\n").filter((line) => line.trim() !== "");
                     
-                    const newLogEntries: LogEntry[] = lines.map(line => {
-                         // Parse line for metadata
+                    const newLogEntries = lines.map(line => {
                          const upperLine = line.toUpperCase();
                          let level: LogEntry['level'] = 'INFO';
                          
-                         if (upperLine.includes("ERROR") || upperLine.includes("FAIL") || upperLine.includes("CRITICAL") || upperLine.includes("EXCEPTION")) {
-                             level = 'ERROR';
-                         } else if (upperLine.includes("WARN") || upperLine.includes("WARNING")) {
-                             level = 'WARN';
-                         } else if (upperLine.includes("SUCCESS") || upperLine.includes("COMPLETED")) {
-                             level = 'SUCCESS';
-                         } else if (upperLine.includes("PROCESS") || upperLine.includes("STARTING") || upperLine.includes("EXECUTING") || upperLine.includes("INIT")) {
-                             level = 'PROCESS';
-                         }
+                         if (upperLine.includes("ERROR") || upperLine.includes("FAIL")) level = 'ERROR';
+                         else if (upperLine.includes("WARN")) level = 'WARN';
+                         else if (upperLine.includes("SUCCESS")) level = 'SUCCESS';
+                         else if (upperLine.includes("PROCESS") || upperLine.includes("STARTING")) level = 'PROCESS';
 
-                         // Extract timestamp if exists [YYYY-MM-DD...]
                          const match = line.match(/^\[(.*?)\]\s+(.*)$/);
                          let message = line;
-                         // Default timestamp if not in log
-                         let timestamp = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+                         let timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
+                         if (match) message = match[2];
 
-                         if (match) {
-                             // Use match[1] if it looks like a time/date, otherwise keep current time
-                             // match[2] is the clean message
-                             message = match[2];
-                         }
-
-                         return {
-                             stageId: currentStage.id,
-                             timestamp,
-                             level,
-                             message
-                         };
+                         return { stageId: currentStage.id, timestamp, level, message };
                     });
 
-                    // PUSH TO QUEUE (Do not update state directly)
+                    allLogsToSave.push(...newLogEntries.map(l => ({ level: l.level, message: l.message })));
                     logQueueRef.current.push(...newLogEntries);
                 }
             }
 
-            // VISUAL SYNC: Wait for the log queue to drain before marking as complete
-            // This ensures the user sees all logs before the green checkmark appears
             while (logQueueRef.current.length > 0) {
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
 
-            // Stream Complete
-            setProgress(100);
+            // Save history to DB
+            if (allLogsToSave.length > 0) {
+                await api.saveLogs(runId, currentStage.id, allLogsToSave);
+            }
 
-            // Small delay to show completion before moving on
+            // Mark Stage Complete in DB
+            await api.updateStepStatus(runId, currentStage.id, 'completed');
+            
+            setProgress(100);
             await new Promise(resolve => setTimeout(resolve, 500));
             
-            // Mark Stage Complete
             onUpdateStepsRef.current(stepsRef.current.map((step, idx) => 
                 idx === currentStageIndex ? { ...step, status: 'completed' } : step
             ));
-            
             setProgress(0); 
             onUpdateStageIndexRef.current(prev => prev + 1);
             
-            if (mode === 'manual') {
-                setIsManualStageRunning(false);
-            }
+            if (mode === 'manual') setIsManualStageRunning(false);
 
         } catch (error: any) {
-            if (error.name === 'AbortError') {
-                logQueueRef.current = []; // Clear buffer on abort
-            } else {
-                console.error("Pipeline Stream Error:", error);
-                // Handle Error -> maybe add error log
-                onUpdateLogsRef.current(prev => [...prev, {
-                    stageId: currentStage.id,
-                    timestamp: new Date().toLocaleTimeString(),
-                    level: 'ERROR',
-                    message: `Stream connection failed: ${error.message}`
-                }]);
-                // Fail logic could go here if we want strict failure
-                handleSimulateError();
+            if (error.name !== 'AbortError') {
+                console.error("Pipeline Error:", error);
+                await api.updateStepStatus(runId, currentStage.id, 'failed');
+                handleSimulateError(); 
             }
         }
     };
@@ -536,7 +626,11 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
         onCloseCancel={() => setIsCancelModalOpen(false)}
         onConfirmCancel={() => { setIsCancelModalOpen(false); onCancel(); }}
         onCloseRetry={() => setIsRetryModalOpen(false)}
-        onConfirmRetry={() => { setIsRetryModalOpen(false); onRetry(); }}
+        onConfirmRetry={async () => { 
+              setIsRetryModalOpen(false); 
+              await api.retryStep(runId, steps[currentStageIndex].id);
+              onRetry(); 
+          }}
         onCloseNewRun={() => setIsNewRunModalOpen(false)}
         onConfirmNewRun={() => { setIsNewRunModalOpen(false); onCancel(); }}
       />

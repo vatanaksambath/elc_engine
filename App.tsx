@@ -8,6 +8,7 @@ import { HistoryView } from './pages/HistoryView';
 import { DashboardView } from './pages/DashboardView';
 import { SettingsView } from './pages/SettingsView';
 import { Step, ViewType, PipelineStep, LogEntry, ExecutionMode, RunConfiguration } from './types';
+import { api } from './services/api';
 
 // Define Standard Steps (Corporate/SME/Default) - UPDATED STRUCTURE
 const STANDARD_STEPS: PipelineStep[] = [
@@ -85,33 +86,74 @@ function App() {
     return `RUN-${YYYY}${MM}${DD}-${HH}${Min}${SS}`;
   };
 
-  const handleStartExecution = (mode: ExecutionMode, config: RunConfiguration) => {
-    // Reset state for new run
+  // const handleStartExecution = (mode: ExecutionMode, config: RunConfiguration) => {
+  //   // Reset state for new run
+  //   setExecutionLogs([]);
+  //   setExecutionStatus('running');
+  //   setExecutionStageIndex(0);
+  //   setExecutionElapsedTime(0);
+  //   setExecutionMode(mode);
+  //   setRunConfig(config);
+  //   setCurrentRunId(generateRunId()); // Generate unique ID
+    
+  //   // Select Steps based on Scope
+  //   // If "Retail Banking" is the ONLY selected scope, use Retail Steps.
+  //   // If Corporate or SME are included (or mixed), default to Standard Steps.
+  //   const isRetailOnly = config.scope === 'Retail Banking';
+  //   const selectedSteps = isRetailOnly ? RETAIL_STEPS : STANDARD_STEPS;
+
+  //   setPipelineSteps(selectedSteps.map(s => ({...s, status: 'pending'})));
+
+  //   // Navigate
+  //   setCurrentStep(2);
+  //   setMaxReachedStep(2);
+  // };
+
+const handleStartExecution = async (mode: ExecutionMode, config: RunConfiguration) => {
+  try {
     setExecutionLogs([]);
     setExecutionStatus('running');
-    setExecutionStageIndex(0);
-    setExecutionElapsedTime(0);
-    setExecutionMode(mode);
-    setRunConfig(config);
-    setCurrentRunId(generateRunId()); // Generate unique ID
     
-    // Select Steps based on Scope
-    // If "Retail Banking" is the ONLY selected scope, use Retail Steps.
-    // If Corporate or SME are included (or mixed), default to Standard Steps.
-    const isRetailOnly = config.scope === 'Retail Banking';
-    const selectedSteps = isRetailOnly ? RETAIL_STEPS : STANDARD_STEPS;
+    // 1. Start the run in the backend
+    const startResponse = await api.startRun(config, mode);
+    const realRunId = startResponse.data.run_exe_id;
+    setCurrentRunId(realRunId);
 
-    setPipelineSteps(selectedSteps.map(s => ({...s, status: 'pending'})));
+    // 2. FETCH THE REAL STAGES FROM THE DATABASE
+    const detailsResponse = await api.getExecutionDetails(realRunId);
+    const dbSteps = detailsResponse.data.steps.map((s: any) => ({
+      id: s.step_id,
+      label: s.step_name,
+      status: s.status, // Should be 'pending'
+      duration: 0,
+      dag_id: s.dag_id
+    }));
 
-    // Navigate
+    // 3. Set the real steps to state instead of mock templates
+    setPipelineSteps(dbSteps); 
+
     setCurrentStep(2);
     setMaxReachedStep(2);
-  };
+  } catch (error) {
+    console.error("Failed to start:", error);
+    setExecutionStatus('idle');
+  }
+};
 
-  const handleExecutionComplete = () => {
-    setExecutionStatus('completed');
-    setCurrentStep(3);
-    setMaxReachedStep(3);
+  const handleExecutionComplete = async () => {
+    try {
+        await api.completePipeline(
+            currentRunId, 
+            'SUCCESS', 
+            1238354, // Replace with dynamic calculation if available
+            'The pipeline executed successfully.'
+        );
+        setExecutionStatus('completed');
+        setCurrentStep(3);
+        setMaxReachedStep(3);
+    } catch (error) {
+        console.error("Failed to complete pipeline in DB", error);
+    }
   };
 
   const handleExecutionFailed = () => {

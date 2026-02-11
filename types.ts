@@ -69,3 +69,11 @@ export interface HistoryItem {
   triggeredBy: string;
   records: number;
 }
+
+export interface PipelineStep {
+  id: number;
+  label: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  duration: number;
+  dag_id?: string; // <-- NEW: Used to dynamically trigger Airflow
+}
