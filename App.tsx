@@ -86,7 +86,7 @@ function App() {
     return `RUN-${YYYY}${MM}${DD}-${HH}${Min}${SS}`;
   };
 
-  // const handleStartExecution = (mode: ExecutionMode, config: RunConfiguration) => {
+
   //   // Reset state for new run
   //   setExecutionLogs([]);
   //   setExecutionStatus('running');
@@ -107,7 +107,7 @@ function App() {
   //   // Navigate
   //   setCurrentStep(2);
   //   setMaxReachedStep(2);
-  // };
+  // }
 
 const handleStartExecution = async (mode: ExecutionMode, config: RunConfiguration) => {
   try {
@@ -233,23 +233,23 @@ const handleStartExecution = async (mode: ExecutionMode, config: RunConfiguratio
           case 2:
             return (
               <ExecutionView 
-                steps={pipelineSteps}
-                logs={executionLogs}
-                status={executionStatus}
-                mode={executionMode}
-                runId={currentRunId}
-                config={runConfig}
-                currentStageIndex={executionStageIndex}
-                elapsedTime={executionElapsedTime}
-                onUpdateSteps={setPipelineSteps}
-                onUpdateLogs={setExecutionLogs}
-                onUpdateStageIndex={setExecutionStageIndex}
-                onUpdateElapsedTime={setExecutionElapsedTime}
-                onComplete={handleExecutionComplete}
-                onCancel={handleResetToConfiguration}
-                onFail={handleExecutionFailed}
-                onRetry={handleRetryExecution}
-              />
+      steps={pipelineSteps} // Ensure this prop name matches ExecutionView.tsx
+      logs={executionLogs}
+      status={executionStatus}
+      mode={executionMode}
+      runId={currentRunId}
+      config={runConfig}
+      currentStageIndex={executionStageIndex}
+      elapsedTime={executionElapsedTime}
+      onUpdateSteps={setPipelineSteps}
+      onUpdateLogs={setExecutionLogs}
+      onUpdateStageIndex={setExecutionStageIndex}
+      onUpdateElapsedTime={setExecutionElapsedTime}
+      onComplete={handleExecutionComplete}
+      onCancel={handleResetToConfiguration}
+      onFail={handleExecutionFailed}
+      onRetry={handleRetryExecution}
+    />
             );
           case 3:
             return <ResultsView onRestart={handleResetToConfiguration} />;
