@@ -1,0 +1,5 @@
+{
+  "name": "ECL Engine - Credit Risk Orchestration",
+  "description": "A comprehensive dashboard for configuring, executing, and analyzing Expected Credit Loss (ECL) models with a simulated execution terminal and results visualization.",
+  "requestFramePermissions": []
+}
